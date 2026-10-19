@@ -1,0 +1,112 @@
+plugins {
+    id 'fabric-loom' version '1.17.21'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    maven { url = uri("file:///Z:/Admin/Crak/.m2repo") }
+    mavenCentral()
+    maven { url = "https://maven.fabricmc.net/" }
+    flatDir { dirs "libs", "libs/external" }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:1.21.11+build.6:v2"
+
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+    implementation fileTree(dir: "libs", include: "*.jar")
+    // 总包本身不提供类，只用于 Fabric Loader 的 fabric-api mod id；
+    // 各模块逐个交给 Loom 重映射，dev 运行时才能拿到 named 类。
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    modImplementation fileTree(dir: "libs/fabric-api-raw", include: "*.jar")
+
+    compileOnly "org.projectlombok:lombok:1.18.42"
+    annotationProcessor "org.projectlombok:lombok:1.18.42"
+
+    // 完整 918 类 named 副本：所有 native 降级为空实现，验证模块不再触发
+    implementation files('precompiled/classes-full-allstub.jar')
+}
+
+sourceSets {
+    main {
+        java {
+            // 只编译原生注册器被移除后需要的占位 Hidden0；其余类全部来自完整 jar，
+            // 避免 Windows 目录把 iR/ir 这类类名合并成同一个文件。
+            include 'cn/xcnya/obfuscation/hidden/Hidden0.java'
+            include 'cn/hydrogen/hydrogen/右美折叠.java'
+            include 'cn/hydrogen/hydrogen/普瑞巴林包名.java'
+            include 'cn/hydrogen/hydrogen/Z4.java'
+            include 'cn/hydrogen/hydrogen/HydrogenRemap.java'
+            include 'cn/hydrogen/hydrogen/HydrogenMovement.java'
+            include 'cn/hydrogen/hydrogen/HydrogenModules.java'
+            include 'cn/hydrogen/hydrogen/HydrogenClickGuiBootstrap.java'
+        }
+    }
+}
+
+loom {
+    // 不要挂 -javaagent 探针：Fabric 会拒绝加载 agent 里的类
+}
+
+tasks.named("runClient") {
+    // 没有登录会话；要进世界时用 -PquickPlay="存档名" 直接跳过标题页。
+    if (findProperty("quickPlay") != null) {
+        args '--quickPlaySingleplayer', findProperty("quickPlay").toString()
+    }
+    // 开发窗口固定 1280x720，否则 854x480 会把 ClickGUI 挤到贴边。
+    args '--width', '1280', '--height', '720'
+}
+
+processResources {
+    inputs.property "version", project.version
+    inputs.property "minecraft_version", project.minecraft_version
+    inputs.property "loader_version", project.loader_version
+    filteringCharset "UTF-8"
+
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version,
+                "minecraft_version": project.minecraft_version,
+                "loader_version": project.loader_version
+    }
+}
+
+def targetJavaVersion = 21
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = "UTF-8"
+    it.options.release.set(targetJavaVersion)
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+}
+
+jar {
+    // live2d-core 与完整类集里存在同名 BuildConfig.class，保留先出现的一份。
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(zipTree("libs/live2d-core-1.1.jar")) {
+        exclude "META-INF/MANIFEST.MF"
+    }
+    // 打包同样使用完整的、已移除原生验证的副本
+    from(zipTree("precompiled/classes-full-allstub.jar")) {
+        exclude "META-INF/MANIFEST.MF"
+    }
+    from("LICENSE") {
+        rename { "${it}_${project.archives_base_name}" }
+    }
+}
+
+
+
+
+
+
+
+

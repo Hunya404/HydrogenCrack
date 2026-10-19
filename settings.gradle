@@ -1,0 +1,29 @@
+pluginManagement {
+    repositories {
+        maven { url = uri("file:///Z:/Admin/Crak/.m2repo") }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "fabric-loom") {
+                useModule("net.fabricmc:fabric-loom:${requested.version}")
+            }
+        }
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode = RepositoriesMode.PREFER_SETTINGS
+    repositories {
+        maven { url = uri("file:///Z:/Admin/Crak/.m2repo") }
+        // Loom writes the hashed Minecraft merge and remapped mods into this
+        // project's .gradle/loom-cache. They are regenerated on demand, so the
+        // repositories are declared relative to the project instead of an
+        // absolute path.
+        maven { url = uri("${rootDir}/.gradle/loom-cache/remapped_mods") }
+        maven { url = uri("${rootDir}/.gradle/loom-cache/minecraftMaven") }
+    }
+}
+
+rootProject.name = "hydrogen"
